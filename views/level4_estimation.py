@@ -166,6 +166,16 @@ class Level4View(LevelBase):
                 btn.check_hover(x, y)
 
     def on_mouse_press(self, x, y, button, modifiers):
+        """Maneja la selección de una respuesta de estimación.
+        
+        Para estimación, se acepta como correcta cualquier respuesta
+        dentro de un rango de +/- 2 del valor real.
+        
+        Args:
+            x, y: Posición del clic.
+            button: Botón del mouse.
+            modifiers: Teclas modificadoras.
+        """
         if self.state == "feedback" or self.answered:
             return
 
@@ -174,13 +184,13 @@ class Level4View(LevelBase):
                 self.answered = True
                 answer = btn.value
 
-                # Para estimación, aceptar si está cerca (±2)
+                # Verificar si es exacta o cercana (+/- 2)
                 is_close = abs(answer - self.correct_count) <= 2
                 is_exact = answer == self.correct_count
 
+                # Registrar datos en el tracker
                 tracker = getattr(self.window, 'tracker', None)
                 if tracker:
-                    # Registramos como correcto si está dentro del rango
                     tracker.current_trial.is_correct = is_close
                     tracker.current_trial.player_answer = answer
                     tracker.current_trial.end_time = __import__('time').time()
@@ -190,22 +200,29 @@ class Level4View(LevelBase):
                     tracker.current_trial.attempts = 1
                     tracker.level_data[self.level_number].append(tracker.current_trial)
 
+                # Configurar feedback visual
+                self.state = "feedback"
+                self.feedback_timer = 0
+                self.feedback_text_line2 = ""
+
                 if is_exact:
                     btn.state = "correct"
-                    self.feedback_text = "¡Exacto! ⭐⭐"
+                    self.feedback_text = "¡Exacto! ¡Muy bien!"
                     self.feedback_color = COLOR_SUCCESS
                 elif is_close:
                     btn.state = "correct"
-                    self.feedback_text = f"¡Muy cerca! Eran {self.correct_count} ⭐"
+                    self.feedback_text = "¡Muy cerca!"
+                    self.feedback_text_line2 = f"La respuesta exacta era {self.correct_count}"
                     self.feedback_color = COLOR_SUCCESS
                 else:
                     btn.state = "incorrect"
-                    self.feedback_text = f"Eran {self.correct_count}."
+                    self.feedback_text = "No fue esta vez."
+                    self.feedback_text_line2 = f"La respuesta era {self.correct_count}. ¡Sigue intentando!"
                     self.feedback_color = COLOR_SECONDARY
                     for b in self.answer_buttons:
                         if b.value == self.correct_count:
                             b.state = "correct"
 
-                self.state = "feedback"
-                self.feedback_timer = 0
+                # Reproducir sonido de feedback
+                self.play_feedback_sound(is_close)
                 break

@@ -313,11 +313,16 @@ class Level5View(LevelBase):
             card.order_selected = 0
 
     def confirm_answer(self):
-        """Confirma la respuesta del jugador."""
+        """Confirma la respuesta del jugador y muestra feedback.
+        
+        Compara la secuencia del jugador con la correcta,
+        marca cada tarjeta como correcta o incorrecta, y
+        muestra el feedback con sonido.
+        """
         self.answered = True
         is_correct = self.player_sequence == self.correct_sequence
 
-        # Registrar respuesta
+        # Registrar respuesta en el tracker
         tracker = getattr(self.window, 'tracker', None)
         if tracker:
             tracker.current_trial.player_answer = self.player_sequence
@@ -329,7 +334,7 @@ class Level5View(LevelBase):
             tracker.current_trial.attempts = 1
             tracker.level_data[self.level_number].append(tracker.current_trial)
 
-        # Feedback visual en tarjetas
+        # Marcar tarjetas según si están en la posición correcta
         for card in self.cards:
             expected_pos = self.correct_sequence.index(card.number) + 1
             if card.order_selected == expected_pos:
@@ -337,7 +342,18 @@ class Level5View(LevelBase):
             else:
                 card.state = "incorrect"
 
-        self.show_feedback(is_correct)
-        if not is_correct:
+        # Configurar feedback visual
+        self.state = "feedback"
+        self.feedback_timer = 0
+        if is_correct:
+            self.feedback_text = "¡Correcto! ¡Muy bien!"
+            self.feedback_text_line2 = ""
+            self.feedback_color = COLOR_SUCCESS
+        else:
             seq_text = " -> ".join(str(n) for n in self.correct_sequence)
-            self.feedback_text = f"El orden era: {seq_text}"
+            self.feedback_text = "Ese no era el orden."
+            self.feedback_text_line2 = f"El correcto era: {seq_text}"
+            self.feedback_color = COLOR_SECONDARY
+
+        # Reproducir sonido de feedback
+        self.play_feedback_sound(is_correct)
